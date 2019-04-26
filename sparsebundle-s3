@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+import logging
+import sys
+
+import sparsebundle_s3.packer as packer
+
+PACKAGE_COUNT = 0x100
+STORAGE_CLASS = 'DEEP_ARCHIVE'
+
+
+def usage():
+    print('Usage: packer.py bundle-file output-dir')
+    exit(0)
+
+
+def main():
+    logging.basicConfig(level=logging.INFO)
+
+    if len(sys.argv) < 3:
+        usage()
+
+    bundle = sys.argv[1]
+    outdir = sys.argv[2]
+
+    packer.pack(bundle, outdir, PACKAGE_COUNT)
+
+
+main()

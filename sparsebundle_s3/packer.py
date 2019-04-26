@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import sys
 import os
 import logging
@@ -7,15 +5,7 @@ import plistlib
 import shutil
 import tarfile
 
-PACKAGE_COUNT = 0x10
-STORAGE_CLASS = 'DEEP_ARCHIVE'
-
 logger = logging.getLogger('packer')
-
-
-def usage():
-    print('Usage: packer.py bundle-file output-dir')
-    exit(0)
 
 
 def pack(bundle, outdir, package_count):
@@ -85,18 +75,3 @@ def pack(bundle, outdir, package_count):
                 logger.info('  Adding %s -> %s', band_name, band_path)
                 tar.add(band_path, band_name)
         shutil.move(tmp_path, path)
-
-
-def main():
-    logging.basicConfig(level=logging.INFO)
-
-    if len(sys.argv) < 3:
-        usage()
-
-    bundle = sys.argv[1]
-    outdir = sys.argv[2]
-
-    pack(bundle, outdir, PACKAGE_COUNT)
-
-
-main()
