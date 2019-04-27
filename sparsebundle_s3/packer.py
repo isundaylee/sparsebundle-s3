@@ -4,8 +4,13 @@ import logging
 import plistlib
 import shutil
 import tarfile
+import glob
+import time
 
 logger = logging.getLogger('packer')
+
+BACK_PRESSURE_LIMIT = 3
+BACK_PRESSURE_SLEEP_INTERVAL = 1
 
 
 def pack(bundle, outdir, package_count, package_queue, stop_event):
@@ -53,6 +58,13 @@ def pack(bundle, outdir, package_count, package_queue, stop_event):
     # Do packing
     os.makedirs(outdir, exist_ok=True)
     for package_id in sorted(packages.keys()):
+        while True:
+            outstanding_count = len(
+                glob.glob(os.path.join(outdir, '*.tar.gz')))
+            if outstanding_count < BACK_PRESSURE_LIMIT:
+                break
+            time.sleep(BACK_PRESSURE_SLEEP_INTERVAL)
+
         start = format(package_id * package_count, 'x')
         end = format((package_id + 1) * package_count - 1, 'x')
         name = '{}-{}'.format(start, end)
