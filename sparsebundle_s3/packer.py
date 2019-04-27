@@ -8,7 +8,7 @@ import tarfile
 logger = logging.getLogger('packer')
 
 
-def pack(bundle, outdir, package_count, package_queue):
+def pack(bundle, outdir, package_count, package_queue, stop_event):
     # Read band size
     plist_path = os.path.join(bundle, 'Info.plist')
     if not os.path.exists(plist_path):
@@ -58,9 +58,10 @@ def pack(bundle, outdir, package_count, package_queue):
         name = '{}-{}'.format(start, end)
         tmp_path = os.path.join(outdir, '{}-tmp.tar.gz'.format(name))
         path = os.path.join(outdir, '{}.tar.gz'.format(name))
+        done_path = os.path.join(outdir, '{}.done'.format(name))
         logger.info('Packing package %s', path)
 
-        if os.path.exists(path):
+        if os.path.exists(path) or os.path.exists(done_path):
             logger.info('  Already done')
             package_queue.put(name)
             continue
@@ -77,5 +78,9 @@ def pack(bundle, outdir, package_count, package_queue):
         shutil.move(tmp_path, path)
 
         package_queue.put(name)
+
+        if stop_event.is_set():
+            logger.info('Stopping...')
+            break
 
     package_queue.put(None)

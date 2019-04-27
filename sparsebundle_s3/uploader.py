@@ -1,8 +1,9 @@
 import logging
+import os
+import touch
 
 import boto3
-import glob
-import os
+import botocore
 
 from pathlib import Path
 
@@ -15,7 +16,8 @@ def upload_file(local, bucket, remote, storage_class):
             Key=remote, Body=f, StorageClass=storage_class)
 
 
-def upload(bundle, outdir, bucket, name, storage_class, package_queue):
+def upload(bundle, outdir, bucket, name, storage_class, package_queue,
+           stop_event):
     logger.info('Uploading non-band files')
 
     meta_list = []
@@ -42,7 +44,18 @@ def upload(bundle, outdir, bucket, name, storage_class, package_queue):
             break
 
         local = os.path.join(outdir, '{}.tar.gz'.format(package))
+        local_done = os.path.join(outdir, '{}.done'.format(package))
         remote = '{}/bands/{}.tar.gz'.format(name, package)
+
+        if os.path.exists(local_done):
+            logger.info('Already uploaded band file %s', local)
+            continue
 
         logger.info('Uploading band file %s -> %s', local, remote)
         upload_file(local, bucket, remote, storage_class)
+        os.unlink(local)
+        touch.touch(local_done)
+
+        if stop_event.is_set():
+            logger.info('Stopping...')
+            break

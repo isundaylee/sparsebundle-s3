@@ -11,6 +11,8 @@ import sparsebundle_s3.uploader as uploader
 PACKAGE_COUNT = 0x1
 STORAGE_CLASS = 'STANDARD'
 
+logger = logging.getLogger('main')
+
 
 def usage():
     print('Usage: packer.py bundle-file tmp-dir bucket-name upload-name')
@@ -31,19 +33,25 @@ def main():
     name = sys.argv[4]
 
     package_queue = queue.Queue()
+    stop_event = threading.Event()
 
     packer_thread = threading.Thread(
         target=packer.pack,
-        args=(bundle, outdir, PACKAGE_COUNT, package_queue))
+        args=(bundle, outdir, PACKAGE_COUNT, package_queue, stop_event))
     uploader_thread = threading.Thread(
         target=uploader.upload,
-        args=(bundle, outdir, bucket, name, STORAGE_CLASS, package_queue))
+        args=(bundle, outdir, bucket, name, STORAGE_CLASS, package_queue,
+              stop_event))
 
     packer_thread.start()
     uploader_thread.start()
 
-    packer_thread.join()
-    uploader_thread.join()
+    try:
+        packer_thread.join()
+        uploader_thread.join()
+    except KeyboardInterrupt:
+        stop_event.set()
+        logger.info('Stopping...')
 
 
 main()
