@@ -18,7 +18,9 @@ def usage():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        format="[%(asctime)-15s] [%(levelname)-8s] [%(name)-8s] %(message)s",
+        level=logging.INFO)
 
     if len(sys.argv) < 5:
         usage()
