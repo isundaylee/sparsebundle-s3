@@ -6,7 +6,7 @@ import threading
 import queue
 import os
 import glob
-import time
+import argparse
 
 import sparsebundle_s3.packer as packer
 import sparsebundle_s3.uploader as uploader
@@ -17,23 +17,24 @@ STORAGE_CLASS = 'DEEP_ARCHIVE'
 logger = logging.getLogger('main')
 
 
-def usage():
-    print('Usage: packer.py bundle-file tmp-dir bucket-name upload-name')
-    exit(0)
-
-
 def main():
     logging.basicConfig(
         format="[%(asctime)-15s] [%(levelname)-8s] [%(name)-8s] %(message)s",
         level=logging.INFO)
 
-    if len(sys.argv) < 5:
-        usage()
+    parser = argparse.ArgumentParser(
+        description="Packages and uploads a macOS sparse bundle onto S3.")
+    parser.add_argument('bundle', help='Path to the sparse bundle file.')
+    parser.add_argument(
+        'tmpdir', help='Path to a temporary dir for storing band packages.')
+    parser.add_argument('bucket', help='S3 bucket to upload to.')
+    parser.add_argument('name', help='Top-level S3 prefix to upload to.')
 
-    bundle = sys.argv[1]
-    outdir = sys.argv[2]
-    bucket = sys.argv[3]
-    name = sys.argv[4]
+    args = parser.parse_args()
+    bundle = args.bundle
+    outdir = args.tmpdir
+    bucket = args.bucket
+    name = args.name
 
     logger.info('Retrieving bundle file list')
     bundle_files = list(glob.glob(os.path.join(bundle, '**'), recursive=True))
