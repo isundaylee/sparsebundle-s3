@@ -18,8 +18,9 @@ def upload_file(local, bucket, remote, storage_class, md5_catalog_path):
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             m.update(chunk)
 
-    with open(md5_catalog_path, 'a') as f:
-        f.write("{} {}\n".format(m.hexdigest(), remote))
+    if md5_catalog_path is not None:
+        with open(md5_catalog_path, 'a') as f:
+            f.write("{} {}\n".format(m.hexdigest(), remote))
 
     try:
         with open(local, 'rb') as f:
@@ -76,4 +77,9 @@ def upload(bundle, bundle_files, outdir, bucket, name, storage_class,
 
         if stop_event.is_set():
             logger.info('Stopping...')
-            break
+            return
+
+    local = os.path.join(md5_catalog_path)
+    remote = '{}/checksums.txt'.format(name)
+    logger.info('Uploading checksum file %s -> %s', local, remote)
+    upload_file(local, bucket, remote, storage_class, None)
