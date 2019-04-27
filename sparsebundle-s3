@@ -8,8 +8,8 @@ import queue
 import sparsebundle_s3.packer as packer
 import sparsebundle_s3.uploader as uploader
 
-PACKAGE_COUNT = 0x1
-STORAGE_CLASS = 'STANDARD'
+PACKAGE_COUNT = 0x100
+STORAGE_CLASS = 'DEEP_ARCHIVE'
 
 logger = logging.getLogger('main')
 
