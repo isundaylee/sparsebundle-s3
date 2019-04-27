@@ -2,10 +2,11 @@
 
 import logging
 import sys
+import threading
 
 import sparsebundle_s3.packer as packer
 
-PACKAGE_COUNT = 0x100
+PACKAGE_COUNT = 0x1
 STORAGE_CLASS = 'DEEP_ARCHIVE'
 
 
@@ -23,7 +24,12 @@ def main():
     bundle = sys.argv[1]
     outdir = sys.argv[2]
 
-    packer.pack(bundle, outdir, PACKAGE_COUNT)
+    packer_thread = threading.Thread(
+        target=packer.pack, args=(bundle, outdir, PACKAGE_COUNT))
+
+    packer_thread.start()
+
+    packer_thread.join()
 
 
 main()
