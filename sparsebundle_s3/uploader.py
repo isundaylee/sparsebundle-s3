@@ -1,6 +1,8 @@
 import logging
 import os
 import touch
+import glob
+import time
 
 import boto3
 import botocore
@@ -16,21 +18,23 @@ def upload_file(local, bucket, remote, storage_class):
             Key=remote, Body=f, StorageClass=storage_class)
 
 
-def upload(bundle, outdir, bucket, name, storage_class, package_queue,
-           stop_event):
-    logger.info('Uploading non-band files')
-
+def upload(bundle, bundle_files, outdir, bucket, name, storage_class,
+           package_queue, stop_event):
+    logger.info('Finding non-band files')
     meta_list = []
-    for parent, dirs, files in os.walk(bundle):
-        if parent == os.path.join(bundle, 'bands'):
+    for f in bundle_files:
+        if Path(os.path.join(bundle, 'bands')) in Path(f).parents:
             continue
 
-        for f in files:
-            relpath = os.path.relpath(os.path.join(parent, f), bundle)
-            if relpath.startswith('.'):
-                raise RuntimeError('Unexpected meta file: {}'.format(relpath))
-            meta_list.append(relpath)
+        if os.path.isdir(f):
+            continue
 
+        relpath = os.path.relpath(f, bundle)
+        if relpath.startswith('.'):
+            raise RuntimeError('Unexpected meta file: {}'.format(relpath))
+        meta_list.append(relpath)
+
+    logger.info('Uploading non-band files')
     for meta in meta_list:
         local = os.path.join(bundle, meta)
         remote = '{}/{}'.format(name, meta)

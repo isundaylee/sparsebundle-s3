@@ -7,13 +7,16 @@ import tarfile
 import glob
 import time
 
+from pathlib import Path
+
 logger = logging.getLogger('packer')
 
 BACK_PRESSURE_LIMIT = 3
 BACK_PRESSURE_SLEEP_INTERVAL = 1
 
 
-def pack(bundle, outdir, package_count, package_queue, stop_event):
+def pack(bundle, bundle_files, outdir, package_count, package_queue,
+         stop_event):
     # Read band size
     plist_path = os.path.join(bundle, 'Info.plist')
     if not os.path.exists(plist_path):
@@ -31,12 +34,20 @@ def pack(bundle, outdir, package_count, package_queue, stop_event):
         logger.critical('Bundle bands directory does not exist: %s', bands_dir)
         exit(1)
 
+    bands_path = Path(bands_dir)
     bands = []
-    for f in os.listdir(bands_dir):
-        try:
-            num = int(f, 16)
+    for f in bundle_files:
+        if Path(f) == bands_path:
+            continue
 
-            if f != format(num, 'x'):
+        if bands_path not in Path(f).parents:
+            continue
+
+        base = os.path.basename(f)
+        try:
+            num = int(base, 16)
+
+            if base != format(num, 'x'):
                 logger.critical('Invalid band file: %s', f)
                 exit(1)
         except ValueError:
