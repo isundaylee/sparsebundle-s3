@@ -12,11 +12,14 @@ from pathlib import Path
 logger = logging.getLogger('uploader')
 
 
-def upload_file(local, bucket, remote, storage_class):
+def upload_file(local, bucket, remote, storage_class, md5_catalog_path):
     m = hashlib.md5()
     with open(local, 'rb') as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             m.update(chunk)
+
+    with open(md5_catalog_path, 'a') as f:
+        f.write("{} {}\n".format(m.hexdigest(), remote))
 
     try:
         with open(local, 'rb') as f:
@@ -43,13 +46,15 @@ def upload(bundle, bundle_files, outdir, bucket, name, storage_class,
             raise RuntimeError('Unexpected meta file: {}'.format(relpath))
         meta_list.append(relpath)
 
+    md5_catalog_path = os.path.join(outdir, "checksums.txt")
+
     logger.info('Uploading non-band files')
     for meta in meta_list:
         local = os.path.join(bundle, meta)
         remote = '{}/{}'.format(name, meta)
 
         logger.info('Uploading meta file %s -> %s', local, remote)
-        upload_file(local, bucket, remote, storage_class)
+        upload_file(local, bucket, remote, storage_class, md5_catalog_path)
 
     while True:
         package = package_queue.get()
@@ -65,7 +70,7 @@ def upload(bundle, bundle_files, outdir, bucket, name, storage_class,
             continue
 
         logger.info('Uploading band file %s -> %s', local, remote)
-        upload_file(local, bucket, remote, storage_class)
+        upload_file(local, bucket, remote, storage_class, md5_catalog_path)
         os.unlink(local)
         touch.touch(local_done)
 
