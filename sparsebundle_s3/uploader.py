@@ -1,8 +1,8 @@
 import logging
 import os
 import touch
-import glob
-import time
+import hashlib
+import base64
 
 import boto3
 import botocore
@@ -13,9 +13,18 @@ logger = logging.getLogger('uploader')
 
 
 def upload_file(local, bucket, remote, storage_class):
+    m = hashlib.md5()
     with open(local, 'rb') as f:
-        boto3.resource('s3').Bucket(bucket).put_object(
-            Key=remote, Body=f, StorageClass=storage_class)
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            m.update(chunk)
+
+    try:
+        with open(local, 'rb') as f:
+            boto3.resource('s3').Bucket(bucket).put_object(
+                Key=remote, Body=f, StorageClass=storage_class,
+                ContentMD5=base64.b64encode(m.digest()).decode())
+    except botocore.exceptions.ClientError as e:
+        raise RuntimeError("Exception while uploading to S3: {}".format(e))
 
 
 def upload(bundle, bundle_files, outdir, bucket, name, storage_class,

@@ -60,6 +60,10 @@ def main():
     except KeyboardInterrupt:
         stop_event.set()
         logger.info('Stopping...')
+    except (KeyboardInterrupt, RuntimeError) as e:
+        stop_event.set()
+        logger.critical("%s", e)
+        logger.info('Stopping...')
 
 
 main()
