@@ -5,31 +5,39 @@ import sys
 import threading
 
 import sparsebundle_s3.packer as packer
+import sparsebundle_s3.uploader as uploader
 
 PACKAGE_COUNT = 0x1
-STORAGE_CLASS = 'DEEP_ARCHIVE'
+STORAGE_CLASS = 'STANDARD'
 
 
 def usage():
-    print('Usage: packer.py bundle-file output-dir')
+    print('Usage: packer.py bundle-file tmp-dir bucket-name upload-name')
     exit(0)
 
 
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 5:
         usage()
 
     bundle = sys.argv[1]
     outdir = sys.argv[2]
+    bucket = sys.argv[3]
+    name = sys.argv[4]
 
     packer_thread = threading.Thread(
         target=packer.pack, args=(bundle, outdir, PACKAGE_COUNT))
+    uploader_thread = threading.Thread(
+        target=uploader.upload,
+        args=(bundle, outdir, bucket, name, STORAGE_CLASS))
 
     packer_thread.start()
+    uploader_thread.start()
 
     packer_thread.join()
+    uploader_thread.join()
 
 
 main()
