@@ -3,6 +3,7 @@
 import logging
 import sys
 import threading
+import queue
 
 import sparsebundle_s3.packer as packer
 import sparsebundle_s3.uploader as uploader
@@ -27,11 +28,14 @@ def main():
     bucket = sys.argv[3]
     name = sys.argv[4]
 
+    package_queue = queue.Queue()
+
     packer_thread = threading.Thread(
-        target=packer.pack, args=(bundle, outdir, PACKAGE_COUNT))
+        target=packer.pack,
+        args=(bundle, outdir, PACKAGE_COUNT, package_queue))
     uploader_thread = threading.Thread(
         target=uploader.upload,
-        args=(bundle, outdir, bucket, name, STORAGE_CLASS))
+        args=(bundle, outdir, bucket, name, STORAGE_CLASS, package_queue))
 
     packer_thread.start()
     uploader_thread.start()

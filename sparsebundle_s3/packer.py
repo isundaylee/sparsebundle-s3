@@ -8,7 +8,7 @@ import tarfile
 logger = logging.getLogger('packer')
 
 
-def pack(bundle, outdir, package_count):
+def pack(bundle, outdir, package_count, package_queue):
     # Read band size
     plist_path = os.path.join(bundle, 'Info.plist')
     if not os.path.exists(plist_path):
@@ -62,6 +62,7 @@ def pack(bundle, outdir, package_count):
 
         if os.path.exists(path):
             logger.info('  Already done')
+            package_queue.put(name)
             continue
 
         if os.path.exists(tmp_path):
@@ -72,6 +73,9 @@ def pack(bundle, outdir, package_count):
             for band in bands:
                 band_name = format(band, 'x')
                 band_path = os.path.join(bands_dir, band_name)
-                logger.info('  Adding %s -> %s', band_name, band_path)
                 tar.add(band_path, band_name)
         shutil.move(tmp_path, path)
+
+        package_queue.put(name)
+
+    package_queue.put(None)
