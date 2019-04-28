@@ -8,9 +8,8 @@ import os
 import glob
 import argparse
 
-import sparsebundle_s3.uploader as uploader
-
 from sparsebundle_s3.packer import Packer
+from sparsebundle_s3.uploader import Uploader
 
 PACKAGE_COUNT = 0x100
 STORAGE_CLASS = 'DEEP_ARCHIVE'
@@ -46,12 +45,11 @@ def main():
 
     packer = Packer(bundle, bundle_files, outdir, PACKAGE_COUNT, package_queue,
                     stop_event)
+    uploader = Uploader(bundle, bundle_files, outdir, bucket, name,
+                        STORAGE_CLASS, package_queue, stop_event)
 
     packer_thread = threading.Thread(target=packer.pack)
-    uploader_thread = threading.Thread(
-        target=uploader.upload,
-        args=(bundle, bundle_files, outdir, bucket, name, STORAGE_CLASS,
-              package_queue, stop_event))
+    uploader_thread = threading.Thread(target=uploader.upload)
 
     packer_thread.start()
     uploader_thread.start()

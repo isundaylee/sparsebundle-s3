@@ -9,77 +9,88 @@ import botocore
 
 from pathlib import Path
 
-logger = logging.getLogger('uploader')
 
+class Uploader:
+    def __init__(self, bundle, bundle_files, outdir, bucket, name,
+                 storage_class, package_queue, stop_event):
+        self.bundle = bundle
+        self.bundle_files = bundle_files
+        self.outdir = outdir
+        self.bucket = bucket
+        self.name = name
+        self.storage_class = storage_class
 
-def upload_file(local, bucket, remote, storage_class, md5_catalog_path):
-    m = hashlib.md5()
-    with open(local, 'rb') as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            m.update(chunk)
+        self.package_queue = package_queue
+        self.stop_event = stop_event
 
-    if md5_catalog_path is not None:
-        with open(md5_catalog_path, 'a') as f:
-            f.write("{} {}\n".format(m.hexdigest(), remote))
+        self.logger = logging.getLogger('uploader')
 
-    try:
+    def _upload_file(self, local, remote, md5_catalog_path):
+        m = hashlib.md5()
         with open(local, 'rb') as f:
-            boto3.resource('s3').Bucket(bucket).put_object(
-                Key=remote, Body=f, StorageClass=storage_class,
-                ContentMD5=base64.b64encode(m.digest()).decode())
-    except botocore.exceptions.ClientError as e:
-        raise RuntimeError("Exception while uploading to S3: {}".format(e))
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                m.update(chunk)
 
+        if md5_catalog_path is not None:
+            with open(md5_catalog_path, 'a') as f:
+                f.write("{} {}\n".format(m.hexdigest(), remote))
 
-def upload(bundle, bundle_files, outdir, bucket, name, storage_class,
-           package_queue, stop_event):
-    logger.info('Finding non-band files')
-    meta_list = []
-    for f in bundle_files:
-        if Path(os.path.join(bundle, 'bands')) in Path(f).parents:
-            continue
+        try:
+            with open(local, 'rb') as f:
+                boto3.resource('s3').Bucket(self.bucket).put_object(
+                    Key=remote, Body=f, StorageClass=self.storage_class,
+                    ContentMD5=base64.b64encode(m.digest()).decode())
+        except botocore.exceptions.ClientError as e:
+            raise RuntimeError("Exception while uploading to S3: {}".format(e))
 
-        if os.path.isdir(f):
-            continue
+    def upload(self):
+        self.logger.info('Finding non-band files')
+        meta_list = []
+        for f in self.bundle_files:
+            if Path(os.path.join(self.bundle, 'bands')) in Path(f).parents:
+                continue
 
-        relpath = os.path.relpath(f, bundle)
-        if relpath.startswith('.'):
-            raise RuntimeError('Unexpected meta file: {}'.format(relpath))
-        meta_list.append(relpath)
+            if os.path.isdir(f):
+                continue
 
-    md5_catalog_path = os.path.join(outdir, "checksums.txt")
+            relpath = os.path.relpath(f, self.bundle)
+            if relpath.startswith('.'):
+                raise RuntimeError('Unexpected meta file: {}'.format(relpath))
+            meta_list.append(relpath)
 
-    logger.info('Uploading non-band files')
-    for meta in meta_list:
-        local = os.path.join(bundle, meta)
-        remote = '{}/{}'.format(name, meta)
+        md5_catalog_path = os.path.join(self.outdir, "checksums.txt")
 
-        logger.info('Uploading meta file %s -> %s', local, remote)
-        upload_file(local, bucket, remote, storage_class, md5_catalog_path)
+        self.logger.info('Uploading non-band files')
+        for meta in meta_list:
+            local = os.path.join(self.bundle, meta)
+            remote = '{}/{}'.format(self.name, meta)
 
-    while True:
-        package = package_queue.get()
-        if package is None:
-            break
+            self.logger.info('Uploading meta file %s -> %s', local, remote)
+            self._upload_file(local, remote, md5_catalog_path)
 
-        local = os.path.join(outdir, '{}.tar.gz'.format(package))
-        local_done = os.path.join(outdir, '{}.done'.format(package))
-        remote = '{}/bands/{}.tar.gz'.format(name, package)
+        while True:
+            package = self.package_queue.get()
+            if package is None:
+                break
 
-        if os.path.exists(local_done):
-            logger.info('Already uploaded band file %s', local)
-            continue
+            local = os.path.join(self.outdir, '{}.tar.gz'.format(package))
+            local_done = os.path.join(self.outdir, '{}.done'.format(package))
+            remote = '{}/bands/{}.tar.gz'.format(self.name, package)
 
-        logger.info('Uploading band file %s -> %s', local, remote)
-        upload_file(local, bucket, remote, storage_class, md5_catalog_path)
-        os.unlink(local)
-        touch.touch(local_done)
+            if os.path.exists(local_done):
+                self.logger.info('Already uploaded band file %s', local)
+                continue
 
-        if stop_event.is_set():
-            logger.info('Stopping...')
-            return
+            self.logger.info('Uploading band file %s -> %s', local, remote)
+            self._upload_file(local, remote, md5_catalog_path)
+            os.unlink(local)
+            touch.touch(local_done)
 
-    local = os.path.join(md5_catalog_path)
-    remote = '{}/checksums.txt'.format(name)
-    logger.info('Uploading checksum file %s -> %s', local, remote)
-    upload_file(local, bucket, remote, storage_class, None)
+            if self.stop_event.is_set():
+                self.logger.info('Stopping...')
+                return
+
+        local = os.path.join(md5_catalog_path)
+        remote = '{}/checksums.txt'.format(self.name)
+        self.logger.info('Uploading checksum file %s -> %s', local, remote)
+        self._upload_file(local, remote, None)
