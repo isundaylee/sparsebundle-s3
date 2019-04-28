@@ -43,8 +43,7 @@ class Uploader:
         except botocore.exceptions.ClientError as e:
             raise RuntimeError("Exception while uploading to S3: {}".format(e))
 
-    def upload(self):
-        self.logger.info('Finding non-band files')
+    def _find_meta_files(self):
         meta_list = []
         for f in self.bundle_files:
             if Path(os.path.join(self.bundle, 'bands')) in Path(f).parents:
@@ -57,11 +56,13 @@ class Uploader:
             if relpath.startswith('.'):
                 raise RuntimeError('Unexpected meta file: {}'.format(relpath))
             meta_list.append(relpath)
+        return meta_list
 
+    def upload(self):
         md5_catalog_path = os.path.join(self.outdir, "checksums.txt")
 
-        self.logger.info('Uploading non-band files')
-        for meta in meta_list:
+        self.logger.info('Uploading meta files')
+        for meta in self._find_meta_files():
             local = os.path.join(self.bundle, meta)
             remote = '{}/{}'.format(self.name, meta)
 
