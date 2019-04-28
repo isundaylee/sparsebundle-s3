@@ -9,7 +9,6 @@ import time
 
 from pathlib import Path
 
-
 BACK_PRESSURE_LIMIT = 3
 BACK_PRESSURE_SLEEP_INTERVAL = 1
 
@@ -26,18 +25,7 @@ class Packer:
 
         self.logger = logging.getLogger('packer')
 
-    def pack(self):
-        # Read band size
-        plist_path = os.path.join(self.bundle, 'Info.plist')
-        if not os.path.exists(plist_path):
-            raise RuntimeError(
-                'Info.plist does not exist: {}'.format(plist_path))
-
-        with open(plist_path, 'rb') as f:
-            plist = plistlib.load(f)
-        band_size = plist['band-size']
-        self.logger.info('Band size: %d bytes', band_size)
-
+    def _find_bands(self):
         # Gather the list of bands
         bands_dir = os.path.join(self.bundle, 'bands')
         if not os.path.exists(bands_dir):
@@ -47,9 +35,11 @@ class Packer:
         bands_path = Path(bands_dir)
         bands = []
         for f in self.bundle_files:
+            # Skips the bands/ folder itself
             if Path(f) == bands_path:
                 continue
 
+            # Skips files that are not under bands/
             if bands_path not in Path(f).parents:
                 continue
 
@@ -63,49 +53,76 @@ class Packer:
                 raise RuntimeError('Invalid band file: {}'.format(f))
             bands.append(num)
         bands = sorted(bands)
-        self.logger.info('Band count: %d', len(bands))
 
-        # Calculate packages
+        return bands
+
+    def _build_package_manifests(self, bands):
         packages = {}
         for band in bands:
             package_id = band // self.package_count
             if package_id not in packages:
                 packages[package_id] = []
             packages[package_id].append(band)
+        return packages
+
+    def _build_package(self, bands, outfile):
+        with tarfile.open(outfile, 'x:gz') as tar:
+            for band in bands:
+                band_name = format(band, 'x')
+                band_path = os.path.join(self.bundle, 'bands', band_name)
+                tar.add(band_path, band_name)
+
+    def _back_pressure_wait(self):
+        while True:
+            outstanding_count = len(
+                glob.glob(os.path.join(self.outdir, '*.tar.gz')))
+            if outstanding_count < BACK_PRESSURE_LIMIT:
+                break
+            time.sleep(BACK_PRESSURE_SLEEP_INTERVAL)
+
+    def pack(self):
+        # Read band size
+        plist_path = os.path.join(self.bundle, 'Info.plist')
+        if not os.path.exists(plist_path):
+            raise RuntimeError(
+                'Info.plist does not exist: {}'.format(plist_path))
+
+        with open(plist_path, 'rb') as f:
+            plist = plistlib.load(f)
+        band_size = plist['band-size']
+        self.logger.info('Band size: %d bytes', band_size)
+
+        # Calculate package manifests
+        bands = self._find_bands()
+        self.logger.info('Band count: %d', len(bands))
+        packages = self._build_package_manifests(bands)
         self.logger.info('Package count: %d', len(packages))
 
         # Do packing
         os.makedirs(self.outdir, exist_ok=True)
         for package_id in sorted(packages.keys()):
-            while True:
-                outstanding_count = len(
-                    glob.glob(os.path.join(self.outdir, '*.tar.gz')))
-                if outstanding_count < BACK_PRESSURE_LIMIT:
-                    break
-                time.sleep(BACK_PRESSURE_SLEEP_INTERVAL)
+            self._back_pressure_wait()
 
-            start = format(package_id * self.package_count, 'x')
-            end = format((package_id + 1) * self.package_count - 1, 'x')
-            name = '{}-{}'.format(start, end)
+            name = '{}-{}'.format(
+                format(package_id * self.package_count, 'x'),
+                format((package_id + 1) * self.package_count - 1, 'x'))
             tmp_path = os.path.join(self.outdir, '{}-tmp.tar.gz'.format(name))
-            path = os.path.join(self.outdir, '{}.tar.gz'.format(name))
             done_path = os.path.join(self.outdir, '{}.done'.format(name))
+            path = os.path.join(self.outdir, '{}.tar.gz'.format(name))
+
             self.logger.info('Packing package %s', path)
 
+            # If the package is already built or uploaded
             if os.path.exists(path) or os.path.exists(done_path):
                 self.logger.info('  Already done')
                 self.package_queue.put(name)
                 continue
 
+            # Removes previous in-progress file
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
-            with tarfile.open(tmp_path, 'x:gz') as tar:
-                bands = packages[package_id]
-                for band in bands:
-                    band_name = format(band, 'x')
-                    band_path = os.path.join(bands_dir, band_name)
-                    tar.add(band_path, band_name)
+            self._build_package(packages[package_id], tmp_path)
             shutil.move(tmp_path, path)
 
             self.package_queue.put(name)
