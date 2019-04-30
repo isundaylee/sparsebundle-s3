@@ -36,6 +36,16 @@ class Uploader:
     def _upload_file(self, local_file, remote, md5_catalog_path):
         md5 = _calculate_md5(local_file)
 
+        try:
+            e_tag = boto3.resource('s3').Object(self.bucket, remote).e_tag
+            if e_tag[1:-1] == md5.hexdigest():
+                self.logger.info('  File %s already uploaded.', remote)
+                return
+            else:
+                self.logger.warn('  File %s has a checksum mismatch.', remote)
+        except botocore.exceptions.ClientError:
+            pass
+
         if md5_catalog_path is not None:
             with open(md5_catalog_path, 'a') as file:
                 file.write("{} {}\n".format(md5.hexdigest(), remote))
@@ -127,12 +137,6 @@ class Uploader:
                 format(package_id * self.package_count, 'x'),
                 format((package_id + 1) * self.package_count - 1, 'x'))
             remote_path = '{}/bands/{}.arc'.format(self.name, name)
-            done_path = os.path.join(self.outdir, '{}.done'.format(name))
-
-            # If the package is already uploaded
-            if os.path.exists(done_path):
-                self.logger.info('Package %s has already been uploaded', name)
-                continue
 
             archive = arc.archive.Archive()
             band_files = []
@@ -145,7 +149,6 @@ class Uploader:
 
             self.logger.info('Uploading package %s', remote_path)
             self._upload_file(archive, remote_path, md5_catalog_path)
-            touch.touch(done_path)
 
             for file in band_files:
                 file.close()
