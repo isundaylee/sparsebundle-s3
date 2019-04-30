@@ -11,8 +11,14 @@ def _get_length(content):
 
 class Archive:
     """
-    Archive binary format is composed of a stream of files. Each file has the
-    following fields:
+    arc binary format is composed of a header followed by a stream of files.
+
+    The header contains the following fields:
+
+    1. magic,       4           bytes (always "arcf")
+    2. header,      32          bytes (currently all 0 bits)
+
+    Each file contains the following fields:
 
     1. name_len,    4           bytes (little endian)
     2. name,        name_length bytes
