@@ -47,15 +47,15 @@ class Uploader:
         except botocore.exceptions.ClientError:
             pass
 
-        if md5_catalog_path is not None:
-            with open(md5_catalog_path, 'a') as file:
-                file.write("{} {}\n".format(md5.hexdigest(), remote))
-
         try:
             local_file.seek(0)
             boto3.resource('s3').Bucket(self.bucket).put_object(
                 Key=remote, Body=local_file, StorageClass=storage_class,
                 ContentMD5=base64.b64encode(md5.digest()).decode())
+
+            if md5_catalog_path is not None:
+                with open(md5_catalog_path, 'a') as file:
+                    file.write("{} {}\n".format(md5.hexdigest(), remote))
         except botocore.exceptions.ClientError as ex:
             raise RuntimeError(
                 "Exception while uploading to S3: {}".format(ex))
