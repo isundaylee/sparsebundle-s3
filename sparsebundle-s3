@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 
 import logging
-import sys
-import threading
-import queue
 import os
 import glob
 import argparse
 
-from sparsebundle_s3.packer import Packer
 from sparsebundle_s3.uploader import Uploader
 
 PACKAGE_COUNT = 0x100
-STORAGE_CLASS = 'DEEP_ARCHIVE'
+STORAGE_CLASS = 'STANDARD'
+# STORAGE_CLASS = 'DEEP_ARCHIVE'
 
 logger = logging.getLogger('main')
 
@@ -40,30 +37,9 @@ def main():
     bundle_files = list(glob.glob(os.path.join(bundle, '**'), recursive=True))
     logger.info('Bundle contains %d files', len(bundle_files))
 
-    package_queue = queue.Queue()
-    stop_event = threading.Event()
-
-    packer = Packer(bundle, bundle_files, outdir, PACKAGE_COUNT, package_queue,
-                    stop_event)
-    uploader = Uploader(bundle, bundle_files, outdir, bucket, name,
-                        STORAGE_CLASS, package_queue, stop_event)
-
-    packer_thread = threading.Thread(target=packer.pack)
-    uploader_thread = threading.Thread(target=uploader.upload)
-
-    packer_thread.start()
-    uploader_thread.start()
-
-    try:
-        packer_thread.join()
-        uploader_thread.join()
-    except KeyboardInterrupt:
-        stop_event.set()
-        logger.info('Stopping...')
-    except RuntimeError as e:
-        stop_event.set()
-        logger.critical("%s", e)
-        logger.info('Stopping...')
+    uploader = Uploader(bundle, bundle_files, PACKAGE_COUNT, outdir,
+                        bucket, name, STORAGE_CLASS)
+    uploader.upload()
 
 
 main()

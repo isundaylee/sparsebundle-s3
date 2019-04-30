@@ -9,42 +9,42 @@ import touch
 import boto3
 import botocore
 
+import arc.archive
 
-def _calculate_md5(path):
+
+def _calculate_md5(file):
     md5 = hashlib.md5()
-    with open(path, 'rb') as file:
-        for chunk in iter(lambda: file.read(1024 * 1024), b""):
-            md5.update(chunk)
+    file.seek(0)
+    for chunk in iter(lambda: file.read(1024 * 1024), b""):
+        md5.update(chunk)
     return md5
 
 
 class Uploader:
-    def __init__(self, bundle, bundle_files, outdir, bucket, name,
-                 storage_class, package_queue, stop_event):
+    def __init__(self, bundle, bundle_files, package_count, outdir, bucket,
+                 name, storage_class):
         self.bundle = bundle
         self.bundle_files = bundle_files
+        self.package_count = package_count
         self.outdir = outdir
         self.bucket = bucket
         self.name = name
         self.storage_class = storage_class
 
-        self.package_queue = package_queue
-        self.stop_event = stop_event
-
         self.logger = logging.getLogger('uploader')
 
-    def _upload_file(self, local, remote, md5_catalog_path):
-        md5 = _calculate_md5(local)
+    def _upload_file(self, local_file, remote, md5_catalog_path):
+        md5 = _calculate_md5(local_file)
 
         if md5_catalog_path is not None:
             with open(md5_catalog_path, 'a') as file:
                 file.write("{} {}\n".format(md5.hexdigest(), remote))
 
         try:
-            with open(local, 'rb') as file:
-                boto3.resource('s3').Bucket(self.bucket).put_object(
-                    Key=remote, Body=file, StorageClass=self.storage_class,
-                    ContentMD5=base64.b64encode(md5.digest()).decode())
+            local_file.seek(0)
+            boto3.resource('s3').Bucket(self.bucket).put_object(
+                Key=remote, Body=local_file, StorageClass=self.storage_class,
+                ContentMD5=base64.b64encode(md5.digest()).decode())
         except botocore.exceptions.ClientError as ex:
             raise RuntimeError(
                 "Exception while uploading to S3: {}".format(ex))
@@ -64,6 +64,46 @@ class Uploader:
             meta_list.append(relpath)
         return meta_list
 
+    def _find_bands(self):
+        # Gather the list of bands
+        bands_dir = os.path.join(self.bundle, 'bands')
+        if not os.path.exists(bands_dir):
+            raise RuntimeError(
+                'Bundle bands directory does not exist: {}'.format(bands_dir))
+
+        bands_path = Path(bands_dir)
+        bands = []
+        for f in self.bundle_files:
+            # Skips the bands/ folder itself
+            if Path(f) == bands_path:
+                continue
+
+            # Skips files that are not under bands/
+            if bands_path not in Path(f).parents:
+                continue
+
+            base = os.path.basename(f)
+            try:
+                num = int(base, 16)
+
+                if base != format(num, 'x'):
+                    raise RuntimeError('Invalid band file: {}'.format(f))
+            except ValueError:
+                raise RuntimeError('Invalid band file: {}'.format(f))
+            bands.append(num)
+        bands = sorted(bands)
+
+        return bands
+
+    def _build_package_manifests(self, bands):
+        packages = {}
+        for band in bands:
+            package_id = band // self.package_count
+            if package_id not in packages:
+                packages[package_id] = []
+            packages[package_id].append(band)
+        return packages
+
     def upload(self):
         md5_catalog_path = os.path.join(self.outdir, "checksums.txt")
 
@@ -73,31 +113,45 @@ class Uploader:
             remote = '{}/{}'.format(self.name, meta)
 
             self.logger.info('Uploading meta file %s -> %s', local, remote)
-            self._upload_file(local, remote, md5_catalog_path)
+            with open(local, 'rb') as file:
+                self._upload_file(file, remote, md5_catalog_path)
 
-        while True:
-            package = self.package_queue.get()
-            if package is None:
-                break
+        bands = self._find_bands()
+        packages = self._build_package_manifests(bands)
+        self.logger.info(
+            'Found %d bands -- will build %d packages',
+            len(bands), len(packages))
 
-            local = os.path.join(self.outdir, '{}.tar.gz'.format(package))
-            local_done = os.path.join(self.outdir, '{}.done'.format(package))
-            remote = '{}/bands/{}.tar.gz'.format(self.name, package)
+        for package_id in sorted(packages.keys()):
+            name = '{}-{}'.format(
+                format(package_id * self.package_count, 'x'),
+                format((package_id + 1) * self.package_count - 1, 'x'))
+            remote_path = '{}/bands/{}.arc'.format(self.name, name)
+            done_path = os.path.join(self.outdir, '{}.done'.format(name))
 
-            if os.path.exists(local_done):
-                self.logger.info('Already uploaded band file %s', local)
+            # If the package is already uploaded
+            if os.path.exists(done_path):
+                self.logger.info('Package %s has already been uploaded', name)
                 continue
 
-            self.logger.info('Uploading band file %s -> %s', local, remote)
-            self._upload_file(local, remote, md5_catalog_path)
-            os.unlink(local)
-            touch.touch(local_done)
+            archive = arc.archive.Archive()
+            band_files = []
+            for band in packages[package_id]:
+                band_name = format(band, 'x')
+                band_path = os.path.join(self.bundle, 'bands', band_name)
+                band_file = open(band_path, 'rb')
+                band_files.append(band_file)
+                archive.add_file(band_name, band_file)
 
-            if self.stop_event.is_set():
-                self.logger.info('Stopping...')
-                return
+            self.logger.info('Uploading package %s', remote_path)
+            self._upload_file(archive, remote_path, md5_catalog_path)
+            touch.touch(done_path)
+
+            for file in band_files:
+                file.close()
 
         local = os.path.join(md5_catalog_path)
         remote = '{}/checksums.txt'.format(self.name)
         self.logger.info('Uploading checksum file %s -> %s', local, remote)
-        self._upload_file(local, remote, None)
+        with open(local, 'rb') as file:
+            self._upload_file(file, remote, None)
