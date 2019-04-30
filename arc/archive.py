@@ -59,6 +59,7 @@ class Archive:
         to_read = min(cur_field_remaining, size)
 
         if hasattr(field_content, 'read'):
+            field_content.seek(self.field_pos)
             result = field_content.read(to_read)
             assert(len(result) == to_read)
         else:
@@ -70,3 +71,15 @@ class Archive:
             self.field_pos = 0
 
         return result
+
+    def seek(self, pos):
+        self.field_idx = 0
+        self.field_pos = pos
+
+        while self.field_pos >= self.fields[self.field_idx][0]:
+            self.field_pos -= self.fields[self.field_idx][0]
+            self.field_idx += 1
+
+            if self.field_idx >= len(self.fields):
+                self.field_pos = 0
+                return
