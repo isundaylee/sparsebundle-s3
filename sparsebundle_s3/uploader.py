@@ -1,13 +1,21 @@
 import logging
 import os
-import touch
 import hashlib
 import base64
 
+from pathlib import Path
+
+import touch
 import boto3
 import botocore
 
-from pathlib import Path
+
+def _calculate_md5(path):
+    md5 = hashlib.md5()
+    with open(path, 'rb') as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            md5.update(chunk)
+    return md5
 
 
 class Uploader:
@@ -26,33 +34,31 @@ class Uploader:
         self.logger = logging.getLogger('uploader')
 
     def _upload_file(self, local, remote, md5_catalog_path):
-        m = hashlib.md5()
-        with open(local, 'rb') as f:
-            for chunk in iter(lambda: f.read(1024 * 1024), b""):
-                m.update(chunk)
+        md5 = _calculate_md5(local)
 
         if md5_catalog_path is not None:
-            with open(md5_catalog_path, 'a') as f:
-                f.write("{} {}\n".format(m.hexdigest(), remote))
+            with open(md5_catalog_path, 'a') as file:
+                file.write("{} {}\n".format(md5.hexdigest(), remote))
 
         try:
-            with open(local, 'rb') as f:
+            with open(local, 'rb') as file:
                 boto3.resource('s3').Bucket(self.bucket).put_object(
-                    Key=remote, Body=f, StorageClass=self.storage_class,
-                    ContentMD5=base64.b64encode(m.digest()).decode())
-        except botocore.exceptions.ClientError as e:
-            raise RuntimeError("Exception while uploading to S3: {}".format(e))
+                    Key=remote, Body=file, StorageClass=self.storage_class,
+                    ContentMD5=base64.b64encode(md5.digest()).decode())
+        except botocore.exceptions.ClientError as ex:
+            raise RuntimeError(
+                "Exception while uploading to S3: {}".format(ex))
 
     def _find_meta_files(self):
         meta_list = []
-        for f in self.bundle_files:
-            if Path(os.path.join(self.bundle, 'bands')) in Path(f).parents:
+        for file in self.bundle_files:
+            if Path(os.path.join(self.bundle, 'bands')) in Path(file).parents:
                 continue
 
-            if os.path.isdir(f):
+            if os.path.isdir(file):
                 continue
 
-            relpath = os.path.relpath(f, self.bundle)
+            relpath = os.path.relpath(file, self.bundle)
             if relpath.startswith('.'):
                 raise RuntimeError('Unexpected meta file: {}'.format(relpath))
             meta_list.append(relpath)
