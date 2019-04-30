@@ -1,4 +1,12 @@
 import struct
+import os
+
+
+def _get_length(content):
+    if hasattr(content, 'read'):
+        return os.stat(content.name).st_size
+    else:
+        return len(content)
 
 
 class Archive:
@@ -17,8 +25,9 @@ class Archive:
     HEADER_LEN = 32
 
     def __init__(self):
-        self.files = []
-        self.fields = [Archive.MAGIC, b'\x00' * Archive.HEADER_LEN]
+        self.fields = []
+        self._add_field(Archive.MAGIC)
+        self._add_field(b'\x00' * Archive.HEADER_LEN)
 
         self.field_idx = 0
         self.field_pos = 0
@@ -27,35 +36,36 @@ class Archive:
         """Adds the given file into the archive.
 
         `name` should be a string.
-        `content` should be a bytes or a bytearray."""
-        self.files.append((name, content))
+        `content` should be a bytes, a bytearray, or an opened file-like
+        object."""
+        self._add_field(struct.pack("<L", len(name)))
+        self._add_field(name.encode())
+        self._add_field(struct.pack("<Q", _get_length(content)))
+        self._add_field(content)
 
-        self.fields.append(struct.pack("<L", len(name)))
-        self.fields.append(name.encode())
-        self.fields.append(struct.pack("<Q", len(content)))
-        self.fields.append(content)
+    def _add_field(self, content):
+        self.fields.append((_get_length(content), content))
 
     def __len__(self):
-        result = len(Archive.MAGIC) + Archive.HEADER_LEN
-
-        for name, content in self.files:
-            result += 4
-            result += len(name)
-            result += 8
-            result += len(content)
-
-        return result
+        return sum(map(lambda f: f[0], self.fields))
 
     def read(self, size):
         if self.field_idx >= len(self.fields):
             return b''
 
-        cur_field_remaining = len(self.fields[self.field_idx]) - self.field_pos
+        field_len, field_content = self.fields[self.field_idx]
+
+        cur_field_remaining = field_len - self.field_pos
         to_read = min(cur_field_remaining, size)
-        result = self.fields[self.field_idx][self.field_pos:self.field_pos + to_read]
+
+        if hasattr(field_content, 'read'):
+            result = field_content.read(to_read)
+            assert(len(result) == to_read)
+        else:
+            result = field_content[self.field_pos:self.field_pos + to_read]
 
         self.field_pos += to_read
-        if self.field_pos == len(self.fields[self.field_idx]):
+        if self.field_pos == field_len:
             self.field_idx += 1
             self.field_pos = 0
 
