@@ -33,7 +33,8 @@ class Uploader:
 
         self.logger = logging.getLogger('uploader')
 
-    def _upload_file(self, local_file, remote, md5_catalog_path):
+    def _upload_file(self, local_file, remote, md5_catalog_path,
+                     storage_class):
         md5 = _calculate_md5(local_file)
 
         try:
@@ -53,7 +54,7 @@ class Uploader:
         try:
             local_file.seek(0)
             boto3.resource('s3').Bucket(self.bucket).put_object(
-                Key=remote, Body=local_file, StorageClass=self.storage_class,
+                Key=remote, Body=local_file, StorageClass=storage_class,
                 ContentMD5=base64.b64encode(md5.digest()).decode())
         except botocore.exceptions.ClientError as ex:
             raise RuntimeError(
@@ -124,7 +125,8 @@ class Uploader:
 
             self.logger.info('Uploading meta file %s -> %s', local, remote)
             with open(local, 'rb') as file:
-                self._upload_file(file, remote, md5_catalog_path)
+                self._upload_file(file, remote, md5_catalog_path,
+                                  self.storage_class)
 
         bands = self._find_bands()
         packages = self._build_package_manifests(bands)
@@ -148,7 +150,8 @@ class Uploader:
                 archive.add_file(band_name, band_file)
 
             self.logger.info('Uploading package %s', remote_path)
-            self._upload_file(archive, remote_path, md5_catalog_path)
+            self._upload_file(archive, remote_path,
+                              md5_catalog_path, self.storage_class)
 
             for file in band_files:
                 file.close()
@@ -157,4 +160,4 @@ class Uploader:
         remote = '{}/checksums.txt'.format(self.name)
         self.logger.info('Uploading checksum file %s -> %s', local, remote)
         with open(local, 'rb') as file:
-            self._upload_file(file, remote, None)
+            self._upload_file(file, remote, None, 'STANDARD')
