@@ -5,7 +5,6 @@ import base64
 
 from pathlib import Path
 
-import touch
 import boto3
 import botocore
 
