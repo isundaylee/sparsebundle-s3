@@ -2,6 +2,7 @@ import unittest
 import io
 
 from arc.unarchiver import Unarchiver
+from arc.archiver import Archiver
 
 
 # TODO: DRY
@@ -89,6 +90,19 @@ class TestUnarchiver(unittest.TestCase):
         files = unarc.files()
         self.assertEqual(files[0][0], 'test')
         self.assertEqual(read_all(files[0][1]), b'testcontent')
+
+    def test_compress_long_file(self):
+        arc = Archiver(gzip=True)
+        arc.add_file('test', b'0' * 100000)
+
+        content = read_all(arc)
+
+        buf = io.BytesIO(content)
+        unarc = Unarchiver(buf)
+
+        files = unarc.files()
+        self.assertEqual(files[0][0], 'test')
+        self.assertEqual(read_all(files[0][1]), b'0' * 100000)
 
 
 if __name__ == '__main__':

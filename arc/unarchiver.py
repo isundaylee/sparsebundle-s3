@@ -30,16 +30,17 @@ class FileWrapper:
         self.decompressed = None
 
     def read(self, size):
-        to_read = min(size, self.length - self.pos)
 
         if (self.flags & FLAG_GZIP != 0) or (self.flags & FLAG_LZ4 != 0):
             self._compute_cache()
+            to_read = min(size, len(self.decompressed) - self.pos)
             result = self.decompressed[self.pos:self.pos+to_read]
             self.pos += to_read
             if self.pos == self.length:
                 self._clear_cache()
             return result
         else:
+            to_read = min(size, self.length - self.pos)
             self.file.seek(self.offset + self.pos)
 
             self.pos += to_read
