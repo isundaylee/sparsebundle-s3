@@ -6,7 +6,7 @@ import io
 import lz4.frame
 import hexdump
 
-from common import *
+from .common import *
 
 
 def _get_length(content):

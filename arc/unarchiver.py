@@ -3,7 +3,7 @@ import gzip
 
 import lz4.frame
 
-from common import *
+from .common import *
 
 
 class FileWrapper:
