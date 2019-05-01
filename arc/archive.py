@@ -38,7 +38,9 @@ class GzipWrapper:
 
     def __len__(self):
         self._compute_cache()
-        return len(self.compressed)
+        result = len(self.compressed)
+        self._clear_cache()
+        return result
 
     def seek(self, pos):
         self.pos = pos
