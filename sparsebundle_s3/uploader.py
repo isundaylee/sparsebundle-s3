@@ -150,9 +150,7 @@ class Uploader:
                 band_files.append(band_file)
                 archive.add_file(band_name, band_file)
 
-            self.logger.info(
-                'Uploading package %s, size is %d bytes',
-                remote_path, len(archive))
+            self.logger.info('Uploading package %s', remote_path)
             self._upload_file(archive, remote_path,
                               md5_catalog_path, self.storage_class)
 
