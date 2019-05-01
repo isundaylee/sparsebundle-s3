@@ -20,12 +20,13 @@ def _calculate_md5(file):
 
 
 class Uploader:
-    def __init__(self, bundle, bundle_files, package_count, gzip, outdir,
+    def __init__(self, bundle, bundle_files, package_count, gzip, lz4, outdir,
                  bucket, name, storage_class):
         self.bundle = bundle
         self.bundle_files = bundle_files
         self.package_count = package_count
         self.gzip = gzip
+        self.lz4 = lz4
         self.outdir = outdir
         self.bucket = bucket
         self.name = name
@@ -140,7 +141,7 @@ class Uploader:
                 format((package_id + 1) * self.package_count - 1, 'x'))
             remote_path = '{}/bands/{}.arc'.format(self.name, name)
 
-            archive = arc.archive.Archive(gzip=self.gzip)
+            archive = arc.archive.Archive(gzip=self.gzip, lz4=self.lz4)
             band_files = []
             for band in packages[package_id]:
                 band_name = format(band, 'x')
