@@ -1,12 +1,59 @@
 import struct
 import os
+import gzip
+import io
 
 
 def _get_length(content):
-    if hasattr(content, 'read'):
+    if hasattr(content, '__len__'):
+        return len(content)
+    elif hasattr(content, 'read'):
         return os.stat(content.name).st_size
     else:
-        return len(content)
+        raise NotImplementedError()
+
+
+class GzipWrapper:
+    def __init__(self, data):
+        self.data = data
+        self.compressed = None
+        self.pos = 0
+
+    def _compute_cache(self):
+        if self.compressed is not None:
+            return
+
+        buf = io.BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
+            if hasattr(self.data, 'read'):
+                self.data.seek(0)
+                for chunk in iter(lambda: self.data.read(1024 * 1024), b''):
+                    gz.write(chunk)
+            else:
+                gz.write(self.data)
+        self.compressed = buf.getvalue()
+
+    def _clear_cache(self):
+        self.compressed = None
+
+    def __len__(self):
+        self._compute_cache()
+        return len(self.compressed)
+
+    def seek(self, pos):
+        self.pos = pos
+
+    def read(self, size):
+        self._compute_cache()
+
+        to_read = min(size, len(self.compressed) - self.pos)
+        result = self.compressed[self.pos:self.pos+to_read]
+        self.pos += to_read
+
+        if self.pos == len(self.compressed):
+            self._clear_cache()
+
+        return result
 
 
 class Archive:
@@ -30,10 +77,21 @@ class Archive:
 
     HEADER_LEN = 32
 
-    def __init__(self):
+    FLAG_GZIP = 0b00000001
+
+    HEADER_PADDING_LEN = 28
+
+    def __init__(self, gzip=False):
         self.fields = []
         self._add_field(Archive.MAGIC)
-        self._add_field(b'\x00' * Archive.HEADER_LEN)
+
+        self.flags = 0
+
+        if gzip:
+            self.flags |= Archive.FLAG_GZIP
+
+        self._add_field(struct.pack('<L', self.flags))
+        self._add_field(b'\x00' * Archive.HEADER_PADDING_LEN)
 
         self.field_idx = 0
         self.field_pos = 0
@@ -46,6 +104,10 @@ class Archive:
         object."""
         self._add_field(struct.pack("<L", len(name)))
         self._add_field(name.encode())
+
+        if self.flags & Archive.FLAG_GZIP != 0:
+            content = GzipWrapper(content)
+
         self._add_field(struct.pack("<Q", _get_length(content)))
         self._add_field(content)
 

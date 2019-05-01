@@ -203,6 +203,81 @@ class TestStringMethods(unittest.TestCase):
             arc.seek(100000)
             self.assertEqual(read_all(arc), expected)
 
+    def test_gzip_one_file(self):
+        arc = Archive(gzip=True)
+
+        arc.add_file("test", b"testcontent")
+
+        expected = \
+            b'arcf' + \
+            b'\x01\x00\x00\x00' + \
+            b'\x00' * 28 + \
+            b'\x04\x00\x00\x00' + \
+            b'test' + \
+            b'\x1f\x00\x00\x00\x00\x00\x00\x00' + \
+            b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x49\x2d\x2e\x49\xce' + \
+            b'\xcf\x2b\x49\xcd\x2b\x01\x00\x04\xd0\x2f\x90\x0b\x00\x00\x00'
+
+        self.assertEqual(len(arc), len(expected))
+        self.assertEqual(read_all(arc), expected)
+
+    def test_gzip_mix_bytes_and_file_object(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            tf.write(b'suchgreatstuff')
+            tf.seek(0)
+
+            arc = Archive(gzip=True)
+            arc.add_file("test", b"testcontent")
+            arc.add_file("wow", tf)
+
+            expected = \
+                b'arcf' + \
+                b'\x01\x00\x00\x00' + \
+                b'\x00' * 28 + \
+                b'\x04\x00\x00\x00' + \
+                b'test' + \
+                b'\x1f\x00\x00\x00\x00\x00\x00\x00' + \
+                b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x49\x2d\x2e\x49\xce' + \
+                b'\xcf\x2b\x49\xcd\x2b\x01\x00\x04\xd0\x2f\x90\x0b\x00\x00\x00' + \
+                b'\x03\x00\x00\x00' + \
+                b'wow' + \
+                b'\x22\x00\x00\x00\x00\x00\x00\x00' + \
+                b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x2e\x4d\xce\x48\x2f' + \
+                b'\x4a\x4d\x2c\x29\x2e\x29\x4d\x4b\x03\x00\x6b\xb4\xc1\x02\x0e\x00' + \
+                b'\x00\x00'
+
+            self.assertEqual(len(arc), len(expected))
+            self.assertEqual(read_all(arc), expected)
+
+    def test_gzip_seek_beginning(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            tf.write(b'suchgreatstuff')
+            tf.seek(0)
+
+            arc = Archive(gzip=True)
+            arc.add_file("test", b"testcontent")
+            arc.add_file("wow", tf)
+
+            expected = \
+                b'arcf' + \
+                b'\x01\x00\x00\x00' + \
+                b'\x00' * 28 + \
+                b'\x04\x00\x00\x00' + \
+                b'test' + \
+                b'\x1f\x00\x00\x00\x00\x00\x00\x00' + \
+                b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x49\x2d\x2e\x49\xce' + \
+                b'\xcf\x2b\x49\xcd\x2b\x01\x00\x04\xd0\x2f\x90\x0b\x00\x00\x00' + \
+                b'\x03\x00\x00\x00' + \
+                b'wow' + \
+                b'\x22\x00\x00\x00\x00\x00\x00\x00' + \
+                b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x2e\x4d\xce\x48\x2f' + \
+                b'\x4a\x4d\x2c\x29\x2e\x29\x4d\x4b\x03\x00\x6b\xb4\xc1\x02\x0e\x00' + \
+                b'\x00\x00'
+
+            for _ in range(10):
+                arc.seek(0)
+                self.assertEqual(len(arc), len(expected))
+                self.assertEqual(read_all(arc), expected)
 
 if __name__ == '__main__':
     unittest.main()
