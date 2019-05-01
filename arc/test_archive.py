@@ -279,5 +279,6 @@ class TestStringMethods(unittest.TestCase):
                 self.assertEqual(len(arc), len(expected))
                 self.assertEqual(read_all(arc), expected)
 
+
 if __name__ == '__main__':
     unittest.main()
