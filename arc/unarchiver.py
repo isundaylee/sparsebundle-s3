@@ -1,4 +1,7 @@
 import struct
+import gzip
+
+import lz4.frame
 
 from common import *
 
@@ -12,13 +15,36 @@ class FileWrapper:
 
         self.pos = 0
 
+    def _compute_cache(self):
+        self.file.seek(self.offset)
+        compressed = self.file.read(self.length)
+
+        if self.flags & FLAG_GZIP != 0:
+            self.decompressed = gzip.decompress(compressed)
+        elif self.flags & FLAG_LZ4 != 0:
+            self.decompressed = lz4.frame.decompress(compressed)
+        else:
+            assert(False)
+
+    def _clear_cache(self):
+        self.decompressed = None
+
     def read(self, size):
-        self.file.seek(self.offset + self.pos)
-
         to_read = min(size, self.length - self.pos)
-        self.pos += to_read
 
-        return self.file.read(to_read)
+        if (self.flags & FLAG_GZIP != 0) or (self.flags & FLAG_LZ4 != 0):
+            self._compute_cache()
+            result = self.decompressed[self.pos:self.pos+to_read]
+            self.pos += to_read
+            if self.pos == self.length:
+                self._clear_cache()
+            return result
+        else:
+            self.file.seek(self.offset + self.pos)
+
+            self.pos += to_read
+
+            return self.file.read(to_read)
 
     def seek(self, pos):
         self.pos = pos
