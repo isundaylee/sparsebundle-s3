@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 
-from archive import Archive
+from archiver import Archiver
 
 
 def read_all(file, chunk_size=8192):
@@ -16,7 +16,7 @@ def read_all(file, chunk_size=8192):
 
 class TestStringMethods(unittest.TestCase):
     def test_empty(self):
-        arc = Archive()
+        arc = Archiver()
 
         expected = b'arcf' + b'\x00' * 32
 
@@ -24,7 +24,7 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(read_all(arc), expected)
 
     def test_one_file(self):
-        arc = Archive()
+        arc = Archiver()
 
         arc.add_file("test", b"testcontent")
 
@@ -40,7 +40,7 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(read_all(arc), expected)
 
     def test_multiple_files(self):
-        arc = Archive()
+        arc = Archiver()
 
         arc.add_file("test", b"testcontent")
         arc.add_file("wow", b"suchgreatstuff")
@@ -65,7 +65,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'testcontent')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", tf)
 
             expected = \
@@ -87,7 +87,7 @@ class TestStringMethods(unittest.TestCase):
             tf2.write(b'suchgreatstuff')
             tf2.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", tf1)
             arc.add_file("wow", tf2)
 
@@ -111,7 +111,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -135,7 +135,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -161,7 +161,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -180,7 +180,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -194,7 +194,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive()
+            arc = Archiver()
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -204,7 +204,7 @@ class TestStringMethods(unittest.TestCase):
             self.assertEqual(read_all(arc), expected)
 
     def test_gzip_one_file(self):
-        arc = Archive(gzip=True)
+        arc = Archiver(gzip=True)
 
         arc.add_file("test", b"testcontent")
 
@@ -226,7 +226,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive(gzip=True)
+            arc = Archiver(gzip=True)
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -254,7 +254,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archive(gzip=True)
+            arc = Archiver(gzip=True)
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -280,7 +280,7 @@ class TestStringMethods(unittest.TestCase):
                 self.assertEqual(read_all(arc), expected)
 
     def test_lz4_one_file(self):
-        arc = Archive(lz4=True)
+        arc = Archiver(lz4=True)
 
         arc.add_file("test", b"testcontent")
 
@@ -302,7 +302,7 @@ class TestStringMethods(unittest.TestCase):
             tf.write(b'testcontent')
             tf.seek(0)
 
-            arc = Archive(lz4=True)
+            arc = Archiver(lz4=True)
             arc.add_file("test", tf)
 
             expected = \

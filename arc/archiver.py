@@ -82,7 +82,7 @@ class Lz4Wrapper(TransformWrapper):
         return compressed
 
 
-class Archive:
+class Archiver:
     """
     arc binary format is composed of a header followed by a stream of files.
 
@@ -117,17 +117,17 @@ class Archive:
 
     def __init__(self, gzip=False, lz4=False):
         self.fields = []
-        self._add_field(Archive.MAGIC)
+        self._add_field(Archiver.MAGIC)
 
         self.flags = 0
 
         if gzip:
-            self.flags |= Archive.FLAG_GZIP
+            self.flags |= Archiver.FLAG_GZIP
         elif lz4:
-            self.flags |= Archive.FLAG_LZ4
+            self.flags |= Archiver.FLAG_LZ4
 
         self._add_field(struct.pack('<L', self.flags))
-        self._add_field(b'\x00' * Archive.HEADER_PADDING_LEN)
+        self._add_field(b'\x00' * Archiver.HEADER_PADDING_LEN)
 
         self.field_idx = 0
         self.field_pos = 0
@@ -141,9 +141,9 @@ class Archive:
         self._add_field(struct.pack("<L", len(name)))
         self._add_field(name.encode())
 
-        if self.flags & Archive.FLAG_GZIP != 0:
+        if self.flags & Archiver.FLAG_GZIP != 0:
             content = GzipWrapper(content)
-        elif self.flags & Archive.FLAG_LZ4 != 0:
+        elif self.flags & Archiver.FLAG_LZ4 != 0:
             content = Lz4Wrapper(content)
 
         self._add_field(struct.pack("<Q", _get_length(content)))

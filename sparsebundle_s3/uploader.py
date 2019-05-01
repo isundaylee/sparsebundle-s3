@@ -8,7 +8,7 @@ from pathlib import Path
 import boto3
 import botocore
 
-import arc.archive
+import arc.archiver
 
 
 def _calculate_md5(file):
@@ -141,7 +141,7 @@ class Uploader:
                 format((package_id + 1) * self.package_count - 1, 'x'))
             remote_path = '{}/bands/{}.arc'.format(self.name, name)
 
-            archive = arc.archive.Archive(gzip=self.gzip, lz4=self.lz4)
+            archive = arc.archiver.Archiver(gzip=self.gzip, lz4=self.lz4)
             band_files = []
             for band in packages[package_id]:
                 band_name = format(band, 'x')
