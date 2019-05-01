@@ -3,6 +3,9 @@ import os
 import gzip
 import io
 
+import lz4.frame
+import hexdump
+
 
 def _get_length(content):
     if hasattr(content, '__len__'):
@@ -13,25 +16,20 @@ def _get_length(content):
         raise NotImplementedError()
 
 
-class GzipWrapper:
+class TransformWrapper:
     def __init__(self, data):
         self.data = data
         self.compressed = None
         self.pos = 0
 
+    def _transform(self, data):
+        raise NotImplementedError()
+
     def _compute_cache(self):
         if self.compressed is not None:
             return
 
-        buf = io.BytesIO()
-        with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
-            if hasattr(self.data, 'read'):
-                self.data.seek(0)
-                for chunk in iter(lambda: self.data.read(1024 * 1024), b''):
-                    gz.write(chunk)
-            else:
-                gz.write(self.data)
-        self.compressed = buf.getvalue()
+        self.compressed = self._transform(self.data)
 
     def _clear_cache(self):
         self.compressed = None
@@ -58,6 +56,32 @@ class GzipWrapper:
         return result
 
 
+class GzipWrapper(TransformWrapper):
+    def _transform(self, data):
+        buf = io.BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
+            if hasattr(data, 'read'):
+                data.seek(0)
+                for chunk in iter(lambda: data.read(1024 * 1024), b''):
+                    gz.write(chunk)
+            else:
+                gz.write(data)
+        return buf.getvalue()
+
+
+class Lz4Wrapper(TransformWrapper):
+    def _transform(self, data):
+        if hasattr(data, 'read'):
+            data.seek(0)
+            content = data.read()
+        else:
+            content = data
+
+        compressed = lz4.frame.compress(content, compression_level=1,
+                                        store_size=False, content_checksum=True)
+        return compressed
+
+
 class Archive:
     """
     arc binary format is composed of a header followed by a stream of files.
@@ -69,6 +93,9 @@ class Archive:
         FLAG_GZIP   0x01        If set, all `content` fields will be gzipped
                                 with compression level 9 and mtime fixed to 0.
                                 `content_len` will be adjusted accordingly.
+        FLAG_LZ4    0x02        If set, all `content` fields will be lz4 zipped
+                                with compression level 1. `content_len` will be
+                                adjusted accordingly.
     3. header_pad,  28          bytes (all 0 bits)
 
     Each file contains the following fields:
@@ -83,11 +110,12 @@ class Archive:
 
     HEADER_LEN = 32
 
-    FLAG_GZIP = 0b00000001
+    FLAG_GZIP = 0x01
+    FLAG_LZ4 = 0x02
 
     HEADER_PADDING_LEN = 28
 
-    def __init__(self, gzip=False):
+    def __init__(self, gzip=False, lz4=False):
         self.fields = []
         self._add_field(Archive.MAGIC)
 
@@ -95,6 +123,8 @@ class Archive:
 
         if gzip:
             self.flags |= Archive.FLAG_GZIP
+        elif lz4:
+            self.flags |= Archive.FLAG_LZ4
 
         self._add_field(struct.pack('<L', self.flags))
         self._add_field(b'\x00' * Archive.HEADER_PADDING_LEN)
@@ -113,6 +143,8 @@ class Archive:
 
         if self.flags & Archive.FLAG_GZIP != 0:
             content = GzipWrapper(content)
+        elif self.flags & Archive.FLAG_LZ4 != 0:
+            content = Lz4Wrapper(content)
 
         self._add_field(struct.pack("<Q", _get_length(content)))
         self._add_field(content)

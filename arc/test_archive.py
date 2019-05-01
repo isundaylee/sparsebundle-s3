@@ -279,6 +279,45 @@ class TestStringMethods(unittest.TestCase):
                 self.assertEqual(len(arc), len(expected))
                 self.assertEqual(read_all(arc), expected)
 
+    def test_lz4_one_file(self):
+        arc = Archive(lz4=True)
+
+        arc.add_file("test", b"testcontent")
+
+        expected = \
+            b'arcf' + \
+            b'\x02\x00\x00\x00' + \
+            b'\x00' * 28 + \
+            b'\x04\x00\x00\x00' + \
+            b'test' + \
+            b'\x1e\x00\x00\x00\x00\x00\x00\x00' + \
+            b'\x04\x22\x4d\x18\x64\x40\xa7\x0b\x00\x00\x80\x74\x65\x73\x74\x63' + \
+            b'\x6f\x6e\x74\x65\x6e\x74\x00\x00\x00\x00\x27\x31\x63\xd5'
+
+        self.assertEqual(len(arc), len(expected))
+        self.assertEqual(read_all(arc), expected)
+
+    def test_lz4_one_file_object(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            tf.write(b'testcontent')
+            tf.seek(0)
+
+            arc = Archive(lz4=True)
+            arc.add_file("test", tf)
+
+            expected = \
+                b'arcf' + \
+                b'\x02\x00\x00\x00' + \
+                b'\x00' * 28 + \
+                b'\x04\x00\x00\x00' + \
+                b'test' + \
+                b'\x1e\x00\x00\x00\x00\x00\x00\x00' + \
+                b'\x04\x22\x4d\x18\x64\x40\xa7\x0b\x00\x00\x80\x74\x65\x73\x74\x63' + \
+                b'\x6f\x6e\x74\x65\x6e\x74\x00\x00\x00\x00\x27\x31\x63\xd5'
+
+            self.assertEqual(len(arc), len(expected))
+            self.assertEqual(read_all(arc), expected)
+
 
 if __name__ == '__main__':
     unittest.main()
