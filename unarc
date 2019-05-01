@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+
+from arc.unarchiver import Unarchiver
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Unarchives an arc file.")
+    parser.add_argument('path', help='Path to arc file.')
+
+    args = parser.parse_args()
+
+    with open(args.path, 'rb') as arc_file:
+        unarc = Unarchiver(arc_file)
+
+        for name, file in unarc.files():
+            full_path = os.path.join(os.path.dirname(args.path), name)
+
+            print(full_path)
+
+            with open(full_path, 'wb') as out_file:
+                for chunk in iter(lambda: file.read(1024 * 1024), b''):
+                    out_file.write(chunk)
+
+
+main()
