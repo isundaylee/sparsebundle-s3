@@ -6,6 +6,8 @@ import io
 import lz4.frame
 import hexdump
 
+from common import *
+
 
 def _get_length(content):
     if hasattr(content, '__len__'):
@@ -106,28 +108,19 @@ class Archiver:
     2. content,     content_len bytes
     """
 
-    MAGIC = b'arcf'
-
-    HEADER_LEN = 32
-
-    FLAG_GZIP = 0x01
-    FLAG_LZ4 = 0x02
-
-    HEADER_PADDING_LEN = 28
-
     def __init__(self, gzip=False, lz4=False):
         self.fields = []
-        self._add_field(Archiver.MAGIC)
+        self._add_field(MAGIC)
 
         self.flags = 0
 
         if gzip:
-            self.flags |= Archiver.FLAG_GZIP
+            self.flags |= FLAG_GZIP
         elif lz4:
-            self.flags |= Archiver.FLAG_LZ4
+            self.flags |= FLAG_LZ4
 
         self._add_field(struct.pack('<L', self.flags))
-        self._add_field(b'\x00' * Archiver.HEADER_PADDING_LEN)
+        self._add_field(b'\x00' * HEADER_PADDING_LEN)
 
         self.field_idx = 0
         self.field_pos = 0
@@ -141,9 +134,9 @@ class Archiver:
         self._add_field(struct.pack("<L", len(name)))
         self._add_field(name.encode())
 
-        if self.flags & Archiver.FLAG_GZIP != 0:
+        if self.flags & FLAG_GZIP != 0:
             content = GzipWrapper(content)
-        elif self.flags & Archiver.FLAG_LZ4 != 0:
+        elif self.flags & FLAG_LZ4 != 0:
             content = Lz4Wrapper(content)
 
         self._add_field(struct.pack("<Q", _get_length(content)))
