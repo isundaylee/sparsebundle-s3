@@ -1,7 +1,7 @@
 import unittest
 import io
 
-from unarchiver import Unarchiver
+from arc.unarchiver import Unarchiver
 
 
 # TODO: DRY

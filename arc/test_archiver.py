@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 
-from archiver import Archiver
+from arc.archiver import Archiver
 
 
 def read_all(file, chunk_size=8192):
