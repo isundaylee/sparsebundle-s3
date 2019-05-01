@@ -65,7 +65,11 @@ class Archive:
     The header contains the following fields:
 
     1. magic,       4           bytes (always "arcf")
-    2. header,      32          bytes (currently all 0 bits)
+    2. flags        4           bytes
+        FLAG_GZIP   0x01        If set, all `content` fields will be gzipped
+                                with compression level 9 and mtime fixed to 0.
+                                `content_len` will be adjusted accordingly.
+    3. header_pad,  28          bytes (all 0 bits)
 
     Each file contains the following fields:
 
