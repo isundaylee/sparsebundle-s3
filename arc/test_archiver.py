@@ -339,7 +339,9 @@ class TestStringMethods(unittest.TestCase):
             self.assertEqual(read_all(arc), expected)
     
     def test_gzip_one_pass_only(self):
-        """Checks that a zipped archiver only goes through the file once if cache_chunks is given"""
+        """Checks that a zipped archiver only goes through the file once if 
+        cache_chunks is given.
+        """
         arc = Archiver(gzip=True, cache_chunks=True)
 
         arc.add_file("test", UnseekableFile(b'testcontent'))
@@ -358,7 +360,9 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(read_all(arc), expected)
 
     def test_unzipped_one_pass_only(self):
-        """Checks that an unzipped archiver only goes through the file once if cache_chunks is given"""
+        """Checks that an unzipped archiver only goes through the file once if 
+        cache_chunks is given.
+        """
         arc = Archiver(cache_chunks=True)
 
         arc.add_file("test", UnseekableFile(b'testcontent'))
