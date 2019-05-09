@@ -38,6 +38,8 @@ def main():
                         help='Whether to enable gzip compression for band files.')
     parser.add_argument('--lz4', default=False, action='store_true',
                         help='Whether to enable lz4 compression for band files.')
+    parser.add_argument('--cache-chunks', default=False, action='store_true',
+                        help='Whether to enable chunk caching during packaging.')
 
     args = parser.parse_args()
     bundle = args.bundle
@@ -50,7 +52,8 @@ def main():
     logger.info('Bundle contains %d files', len(bundle_files))
 
     uploader = Uploader(bundle, bundle_files, args.package_size, args.gzip,
-                        args.lz4, outdir, bucket, name, args.storage_class)
+                        args.lz4, args.cache_chunks, outdir, bucket, name, 
+                        args.storage_class)
     uploader.upload()
 
 
