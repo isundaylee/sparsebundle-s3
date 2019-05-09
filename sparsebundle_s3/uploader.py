@@ -44,7 +44,7 @@ class Uploader:
                 self.logger.info('  File %s already uploaded.', remote)
                 return
             else:
-                self.logger.warn('  File %s has a checksum mismatch.', remote)
+                self.logger.warning('  File %s has a checksum mismatch.', remote)
         except botocore.exceptions.ClientError:
             pass
 
