@@ -26,7 +26,7 @@ def main():
     parser.add_argument('bucket', help='S3 bucket to upload to.')
     parser.add_argument('name', help='Top-level S3 prefix to upload to.')
     parser.add_argument(
-        '--package-size', default=DEFAULT_PACKAGE_SIZE,
+        '--package-size', type=int, default=DEFAULT_PACKAGE_SIZE,
         help='Size of the band number range to include in each package.')
     parser.add_argument(
         '--storage-class', default=DEFAULT_STORAGE_CLASS,
