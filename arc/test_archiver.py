@@ -4,6 +4,26 @@ import tempfile
 from arc.archiver import Archiver
 
 
+class UnseekableFile:
+    def __init__(self, content):
+        self.content = content
+        self.pos = 0
+
+    def read(self, size=1e10):
+        to_read = min(len(self.content) - self.pos, size)
+
+        result = self.content[self.pos:self.pos+to_read]
+        self.pos += to_read
+
+        return result
+    
+    def seek(self, new_pos):
+        if new_pos == self.pos:
+            return
+
+        raise NotImplementedError("UnseekableFile cannot be seeked.")
+
+
 def read_all(file, chunk_size=8192):
     content = b''
     while True:
@@ -317,6 +337,42 @@ class TestStringMethods(unittest.TestCase):
 
             self.assertEqual(len(arc), len(expected))
             self.assertEqual(read_all(arc), expected)
+    
+    def test_gzip_one_pass_only(self):
+        """Checks that a zipped archiver only goes through the file once if cache_chunks is given"""
+        arc = Archiver(gzip=True, cache_chunks=True)
+
+        arc.add_file("test", UnseekableFile(b'testcontent'))
+
+        expected = \
+            b'arcf' + \
+            b'\x01\x00\x00\x00' + \
+            b'\x00' * 28 + \
+            b'\x04\x00\x00\x00' + \
+            b'test' + \
+            b'\x1f\x00\x00\x00\x00\x00\x00\x00' + \
+            b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x2b\x49\x2d\x2e\x49\xce' + \
+            b'\xcf\x2b\x49\xcd\x2b\x01\x00\x04\xd0\x2f\x90\x0b\x00\x00\x00'
+
+        self.assertEqual(len(arc), len(expected))
+        self.assertEqual(read_all(arc), expected)
+
+    def test_unzipped_one_pass_only(self):
+        """Checks that an unzipped archiver only goes through the file once if cache_chunks is given"""
+        arc = Archiver(cache_chunks=True)
+
+        arc.add_file("test", UnseekableFile(b'testcontent'))
+
+        expected = \
+            b'arcf' + \
+            b'\x00' * 32 + \
+            b'\x04\x00\x00\x00' + \
+            b'test' + \
+            b'\x0b\x00\x00\x00\x00\x00\x00\x00' + \
+            b'testcontent'
+
+        self.assertEqual(len(arc), len(expected))
+        self.assertEqual(read_all(arc), expected)
 
 
 if __name__ == '__main__':

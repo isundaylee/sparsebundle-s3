@@ -19,10 +19,12 @@ def _get_length(content):
 
 
 class TransformWrapper:
-    def __init__(self, data):
+    def __init__(self, data, retain_cache=False):
         self.data = data
         self.compressed = None
         self.pos = 0
+
+        self.retain_cache = retain_cache
 
     def _transform(self, data):
         raise NotImplementedError()
@@ -34,7 +36,8 @@ class TransformWrapper:
         self.compressed = self._transform(self.data)
 
     def _clear_cache(self):
-        self.compressed = None
+        if not self.retain_cache:
+            self.compressed = None
 
     def __len__(self):
         self._compute_cache()
@@ -56,6 +59,15 @@ class TransformWrapper:
             self._clear_cache()
 
         return result
+
+
+class NoOpWrapper(TransformWrapper):
+    def _transform(self, data):
+        if hasattr(data, 'read'):
+            data.seek(0)
+            return data.read()
+        else:
+            return data
 
 
 class GzipWrapper(TransformWrapper):
@@ -108,7 +120,7 @@ class Archiver:
     2. content,     content_len bytes
     """
 
-    def __init__(self, gzip=False, lz4=False):
+    def __init__(self, gzip=False, lz4=False, cache_chunks=False):
         self.fields = []
         self._add_field(MAGIC)
 
@@ -118,6 +130,8 @@ class Archiver:
             self.flags |= FLAG_GZIP
         elif lz4:
             self.flags |= FLAG_LZ4
+        
+        self.cache_chunks = cache_chunks
 
         self._add_field(struct.pack('<L', self.flags))
         self._add_field(b'\x00' * HEADER_PADDING_LEN)
@@ -135,9 +149,11 @@ class Archiver:
         self._add_field(name.encode())
 
         if self.flags & FLAG_GZIP != 0:
-            content = GzipWrapper(content)
+            content = GzipWrapper(content, retain_cache=self.cache_chunks)
         elif self.flags & FLAG_LZ4 != 0:
-            content = Lz4Wrapper(content)
+            content = Lz4Wrapper(content, retain_cache=self.cache_chunks)
+        else:
+            content = NoOpWrapper(content, retain_cache=self.cache_chunks)
 
         self._add_field(struct.pack("<Q", _get_length(content)))
         self._add_field(content)
