@@ -1,4 +1,4 @@
-MAGIC = b'arcf'
+MAGIC = b"arcf"
 
 HEADER_LEN = 32
 

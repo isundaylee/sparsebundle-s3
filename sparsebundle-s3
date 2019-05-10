@@ -8,38 +8,64 @@ import argparse
 from sparsebundle_s3.uploader import Uploader
 
 DEFAULT_PACKAGE_SIZE = 0x100
-DEFAULT_STORAGE_CLASS = 'DEEP_ARCHIVE'
+DEFAULT_STORAGE_CLASS = "DEEP_ARCHIVE"
 
-logger = logging.getLogger('main')
+logger = logging.getLogger("main")
 
 
 def main():
     logging.basicConfig(
         format="[%(asctime)-15s] [%(levelname)-8s] [%(name)-8s] %(message)s",
-        level=logging.INFO)
+        level=logging.INFO,
+    )
 
     parser = argparse.ArgumentParser(
-        description="Packages and uploads a macOS sparse bundle onto S3.")
-    parser.add_argument('bundle', help='Path to the sparse bundle file.')
+        description="Packages and uploads a macOS sparse bundle onto S3."
+    )
+    parser.add_argument("bundle", help="Path to the sparse bundle file.")
     parser.add_argument(
-        'tmpdir', help='Path to a temporary dir for storing band packages.')
-    parser.add_argument('bucket', help='S3 bucket to upload to.')
-    parser.add_argument('name', help='Top-level S3 prefix to upload to.')
+        "tmpdir", help="Path to a temporary dir for storing band packages."
+    )
+    parser.add_argument("bucket", help="S3 bucket to upload to.")
+    parser.add_argument("name", help="Top-level S3 prefix to upload to.")
     parser.add_argument(
-        '--package-size', type=int, default=DEFAULT_PACKAGE_SIZE,
-        help='Size of the band number range to include in each package.')
+        "--package-size",
+        type=int,
+        default=DEFAULT_PACKAGE_SIZE,
+        help="Size of the band number range to include in each package.",
+    )
     parser.add_argument(
-        '--storage-class', default=DEFAULT_STORAGE_CLASS,
-        choices=['STANDARD', 'REDUCED_REDUNDANCY', 'STANDARD_IA',
-                 'ONEZONE_IA', 'INTELLIGENT_TIERING', 'GLACIER',
-                 'DEEP_ARCHIVE'],
-        help='S3 storage class to upload into.')
-    parser.add_argument('--gzip', default=False, action='store_true',
-                        help='Whether to enable gzip compression for band files.')
-    parser.add_argument('--lz4', default=False, action='store_true',
-                        help='Whether to enable lz4 compression for band files.')
-    parser.add_argument('--cache-chunks', default=False, action='store_true',
-                        help='Whether to enable chunk caching during packaging.')
+        "--storage-class",
+        default=DEFAULT_STORAGE_CLASS,
+        choices=[
+            "STANDARD",
+            "REDUCED_REDUNDANCY",
+            "STANDARD_IA",
+            "ONEZONE_IA",
+            "INTELLIGENT_TIERING",
+            "GLACIER",
+            "DEEP_ARCHIVE",
+        ],
+        help="S3 storage class to upload into.",
+    )
+    parser.add_argument(
+        "--gzip",
+        default=False,
+        action="store_true",
+        help="Whether to enable gzip compression for band files.",
+    )
+    parser.add_argument(
+        "--lz4",
+        default=False,
+        action="store_true",
+        help="Whether to enable lz4 compression for band files.",
+    )
+    parser.add_argument(
+        "--cache-chunks",
+        default=False,
+        action="store_true",
+        help="Whether to enable chunk caching during packaging.",
+    )
 
     args = parser.parse_args()
     bundle = args.bundle
@@ -47,13 +73,22 @@ def main():
     bucket = args.bucket
     name = args.name
 
-    logger.info('Retrieving bundle file list')
-    bundle_files = list(glob.glob(os.path.join(bundle, '**'), recursive=True))
-    logger.info('Bundle contains %d files', len(bundle_files))
+    logger.info("Retrieving bundle file list")
+    bundle_files = list(glob.glob(os.path.join(bundle, "**"), recursive=True))
+    logger.info("Bundle contains %d files", len(bundle_files))
 
-    uploader = Uploader(bundle, bundle_files, args.package_size, args.gzip,
-                        args.lz4, args.cache_chunks, outdir, bucket, name, 
-                        args.storage_class)
+    uploader = Uploader(
+        bundle,
+        bundle_files,
+        args.package_size,
+        args.gzip,
+        args.lz4,
+        args.cache_chunks,
+        outdir,
+        bucket,
+        name,
+        args.storage_class,
+    )
     uploader.upload()
 
 

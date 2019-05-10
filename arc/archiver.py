@@ -9,9 +9,9 @@ from .common import MAGIC, FLAG_GZIP, FLAG_LZ4, HEADER_PADDING_LEN
 
 
 def _get_length(content):
-    if hasattr(content, '__len__'):
+    if hasattr(content, "__len__"):
         return len(content)
-    elif hasattr(content, 'read'):
+    elif hasattr(content, "read"):
         return os.stat(content.name).st_size
     else:
         raise NotImplementedError()
@@ -51,7 +51,7 @@ class TransformWrapper:
         self._compute_cache()
 
         to_read = min(size, len(self.compressed) - self.pos)
-        result = self.compressed[self.pos:self.pos+to_read]
+        result = self.compressed[self.pos : self.pos + to_read]
         self.pos += to_read
 
         if self.pos == len(self.compressed):
@@ -62,7 +62,7 @@ class TransformWrapper:
 
 class NoOpWrapper(TransformWrapper):
     def _transform(self, data):
-        if hasattr(data, 'read'):
+        if hasattr(data, "read"):
             data.seek(0)
             return data.read()
         else:
@@ -72,10 +72,10 @@ class NoOpWrapper(TransformWrapper):
 class GzipWrapper(TransformWrapper):
     def _transform(self, data):
         buf = io.BytesIO()
-        with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
-            if hasattr(data, 'read'):
+        with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=9, mtime=0) as gz:
+            if hasattr(data, "read"):
                 data.seek(0)
-                for chunk in iter(lambda: data.read(1024 * 1024), b''):
+                for chunk in iter(lambda: data.read(1024 * 1024), b""):
                     gz.write(chunk)
             else:
                 gz.write(data)
@@ -84,14 +84,15 @@ class GzipWrapper(TransformWrapper):
 
 class Lz4Wrapper(TransformWrapper):
     def _transform(self, data):
-        if hasattr(data, 'read'):
+        if hasattr(data, "read"):
             data.seek(0)
             content = data.read()
         else:
             content = data
 
-        compressed = lz4.frame.compress(content, compression_level=1,
-                                        store_size=False, content_checksum=True)
+        compressed = lz4.frame.compress(
+            content, compression_level=1, store_size=False, content_checksum=True
+        )
         return compressed
 
 
@@ -132,8 +133,8 @@ class Archiver:
 
         self.cache_chunks = cache_chunks
 
-        self._add_field(struct.pack('<L', self.flags))
-        self._add_field(b'\x00' * HEADER_PADDING_LEN)
+        self._add_field(struct.pack("<L", self.flags))
+        self._add_field(b"\x00" * HEADER_PADDING_LEN)
 
         self.field_idx = 0
         self.field_pos = 0
@@ -165,19 +166,19 @@ class Archiver:
 
     def read(self, size):
         if self.field_idx >= len(self.fields):
-            return b''
+            return b""
 
         field_len, field_content = self.fields[self.field_idx]
 
         cur_field_remaining = field_len - self.field_pos
         to_read = min(cur_field_remaining, size)
 
-        if hasattr(field_content, 'read'):
+        if hasattr(field_content, "read"):
             field_content.seek(self.field_pos)
             result = field_content.read(to_read)
             assert len(result) == to_read
         else:
-            result = field_content[self.field_pos:self.field_pos + to_read]
+            result = field_content[self.field_pos : self.field_pos + to_read]
 
         self.field_pos += to_read
         if self.field_pos == field_len:

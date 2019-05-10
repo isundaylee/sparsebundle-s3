@@ -24,7 +24,7 @@ class FileWrapper:
         elif self.flags & FLAG_LZ4 != 0:
             self.decompressed = lz4.frame.decompress(compressed)
         else:
-            assert(False)
+            assert False
 
     def _clear_cache(self):
         self.decompressed = None
@@ -34,7 +34,7 @@ class FileWrapper:
         if (self.flags & FLAG_GZIP != 0) or (self.flags & FLAG_LZ4 != 0):
             self._compute_cache()
             to_read = min(size, len(self.decompressed) - self.pos)
-            result = self.decompressed[self.pos:self.pos+to_read]
+            result = self.decompressed[self.pos : self.pos + to_read]
             self.pos += to_read
             if self.pos == self.length:
                 self._clear_cache()
@@ -63,25 +63,23 @@ class Unarchiver:
         if self.file.read(4) != MAGIC:
             raise RuntimeError("Invalid magic bytes.")
 
-        flags = struct.unpack('<L', self.file.read(4))[0]
+        flags = struct.unpack("<L", self.file.read(4))[0]
 
-        if self.file.read(28) != b'\x00' * 28:
+        if self.file.read(28) != b"\x00" * 28:
             raise RuntimeError("Invalid header padding bytes.")
 
         while True:
             name_len_bytes = self.file.read(4)
 
-            if name_len_bytes == b'':
+            if name_len_bytes == b"":
                 return results
 
-            name_len = struct.unpack('<L', name_len_bytes)[0]
+            name_len = struct.unpack("<L", name_len_bytes)[0]
             name = self.file.read(name_len).decode()
 
-            content_len = struct.unpack('<Q', self.file.read(8))[0]
+            content_len = struct.unpack("<Q", self.file.read(8))[0]
 
-            results.append((
-                name,
-                FileWrapper(self.file, self.file.tell(),
-                            content_len, flags)
-            ))
+            results.append(
+                (name, FileWrapper(self.file, self.file.tell(), content_len, flags))
+            )
             self.file.seek(content_len, 1)
