@@ -34,7 +34,7 @@ def read_all(file, chunk_size=8192):
     return content
 
 
-class TestStringMethods(unittest.TestCase):
+class TestArchiver(unittest.TestCase):
     def test_empty(self):
         arc = Archiver()
 
