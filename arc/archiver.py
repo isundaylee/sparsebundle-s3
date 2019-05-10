@@ -4,9 +4,8 @@ import gzip
 import io
 
 import lz4.frame
-import hexdump
 
-from .common import *
+from .common import MAGIC, FLAG_GZIP, FLAG_LZ4, HEADER_PADDING_LEN
 
 
 def _get_length(content):
@@ -120,17 +119,17 @@ class Archiver:
     2. content,     content_len bytes
     """
 
-    def __init__(self, gzip=False, lz4=False, cache_chunks=False):
+    def __init__(self, use_gzip=False, use_lz4=False, cache_chunks=False):
         self.fields = []
         self._add_field(MAGIC)
 
         self.flags = 0
 
-        if gzip:
+        if use_gzip:
             self.flags |= FLAG_GZIP
-        elif lz4:
+        elif use_lz4:
             self.flags |= FLAG_LZ4
-        
+
         self.cache_chunks = cache_chunks
 
         self._add_field(struct.pack('<L', self.flags))
@@ -176,7 +175,7 @@ class Archiver:
         if hasattr(field_content, 'read'):
             field_content.seek(self.field_pos)
             result = field_content.read(to_read)
-            assert(len(result) == to_read)
+            assert len(result) == to_read
         else:
             result = field_content[self.field_pos:self.field_pos + to_read]
 

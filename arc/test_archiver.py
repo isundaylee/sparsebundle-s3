@@ -16,7 +16,7 @@ class UnseekableFile:
         self.pos += to_read
 
         return result
-    
+
     def seek(self, new_pos):
         if new_pos == self.pos:
             return
@@ -171,7 +171,7 @@ class TestArchiver(unittest.TestCase):
                 b'\x0e\x00\x00\x00\x00\x00\x00\x00' + \
                 b'suchgreatstuff'
 
-            for i in range(10):
+            for _ in range(10):
                 self.assertEqual(len(arc), len(expected))
                 self.assertEqual(read_all(arc), expected)
                 arc.seek(0)
@@ -224,7 +224,7 @@ class TestArchiver(unittest.TestCase):
             self.assertEqual(read_all(arc), expected)
 
     def test_gzip_one_file(self):
-        arc = Archiver(gzip=True)
+        arc = Archiver(use_gzip=True)
 
         arc.add_file("test", b"testcontent")
 
@@ -246,7 +246,7 @@ class TestArchiver(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archiver(gzip=True)
+            arc = Archiver(use_gzip=True)
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -274,7 +274,7 @@ class TestArchiver(unittest.TestCase):
             tf.write(b'suchgreatstuff')
             tf.seek(0)
 
-            arc = Archiver(gzip=True)
+            arc = Archiver(use_gzip=True)
             arc.add_file("test", b"testcontent")
             arc.add_file("wow", tf)
 
@@ -300,7 +300,7 @@ class TestArchiver(unittest.TestCase):
                 self.assertEqual(read_all(arc), expected)
 
     def test_lz4_one_file(self):
-        arc = Archiver(lz4=True)
+        arc = Archiver(use_lz4=True)
 
         arc.add_file("test", b"testcontent")
 
@@ -322,7 +322,7 @@ class TestArchiver(unittest.TestCase):
             tf.write(b'testcontent')
             tf.seek(0)
 
-            arc = Archiver(lz4=True)
+            arc = Archiver(use_lz4=True)
             arc.add_file("test", tf)
 
             expected = \
@@ -337,12 +337,12 @@ class TestArchiver(unittest.TestCase):
 
             self.assertEqual(len(arc), len(expected))
             self.assertEqual(read_all(arc), expected)
-    
+
     def test_gzip_one_pass_only(self):
-        """Checks that a zipped archiver only goes through the file once if 
+        """Checks that a zipped archiver only goes through the file once if
         cache_chunks is given.
         """
-        arc = Archiver(gzip=True, cache_chunks=True)
+        arc = Archiver(use_gzip=True, cache_chunks=True)
 
         arc.add_file("test", UnseekableFile(b'testcontent'))
 
@@ -360,7 +360,7 @@ class TestArchiver(unittest.TestCase):
         self.assertEqual(read_all(arc), expected)
 
     def test_unzipped_one_pass_only(self):
-        """Checks that an unzipped archiver only goes through the file once if 
+        """Checks that an unzipped archiver only goes through the file once if
         cache_chunks is given.
         """
         arc = Archiver(cache_chunks=True)

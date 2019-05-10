@@ -20,7 +20,7 @@ def _calculate_md5(file):
 
 
 class Uploader:
-    def __init__(self, bundle, bundle_files, package_count, gzip, lz4, 
+    def __init__(self, bundle, bundle_files, package_count, gzip, lz4,
                  cache_chunks, outdir, bucket, name, storage_class):
         self.bundle = bundle
         self.bundle_files = bundle_files
@@ -45,7 +45,8 @@ class Uploader:
                 self.logger.info('  File %s already uploaded.', remote)
                 return
             else:
-                self.logger.warning('  File %s has a checksum mismatch.', remote)
+                self.logger.warning(
+                    '  File %s has a checksum mismatch.', remote)
         except botocore.exceptions.ClientError:
             pass
 
@@ -142,7 +143,7 @@ class Uploader:
                 format((package_id + 1) * self.package_count - 1, 'x'))
             remote_path = '{}/bands/{}.arc'.format(self.name, name)
 
-            archive = arc.archiver.Archiver(gzip=self.gzip, lz4=self.lz4, 
+            archive = arc.archiver.Archiver(use_gzip=self.gzip, use_lz4=self.lz4,
                                             cache_chunks=self.cache_chunks)
             band_files = []
             for band in packages[package_id]:

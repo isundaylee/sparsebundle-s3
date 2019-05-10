@@ -139,7 +139,8 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
-        missing-docstring
+        missing-docstring,
+        len-as-condition,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -423,7 +424,9 @@ good-names=i,
            f,
            logger,
            sparsebundle-s3,
-           _
+           _,
+           tf,
+           gz,
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=no

@@ -92,7 +92,7 @@ class TestUnarchiver(unittest.TestCase):
         self.assertEqual(read_all(files[0][1]), b'testcontent')
 
     def test_compress_long_file(self):
-        arc = Archiver(gzip=True)
+        arc = Archiver(use_gzip=True)
         arc.add_file('test', b'0' * 100000)
 
         content = read_all(arc)
