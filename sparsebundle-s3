@@ -66,6 +66,11 @@ def main():
         action="store_true",
         help="Whether to enable chunk caching during packaging.",
     )
+    parser.add_argument(
+        "--for-real",
+        action="store_true",
+        help="Actually upload/write results.",
+    )
 
     args = parser.parse_args()
     bundle = args.bundle
@@ -88,6 +93,7 @@ def main():
         bucket,
         name,
         args.storage_class,
+        args.for_real,
     )
     uploader.upload()
 

@@ -32,6 +32,7 @@ class Uploader:
         bucket,
         name,
         storage_class,
+        for_real,
     ):
         self.bundle = bundle
         self.bundle_files = bundle_files
@@ -43,6 +44,7 @@ class Uploader:
         self.bucket = bucket
         self.name = name
         self.storage_class = storage_class
+        self.for_real = for_real
 
         self.logger = logging.getLogger("uploader")
 
@@ -58,6 +60,9 @@ class Uploader:
                 self.logger.warning("  File %s has a checksum mismatch.", remote)
         except botocore.exceptions.ClientError:
             pass
+
+        if not self.for_real:
+            return
 
         try:
             local_file.seek(0)
