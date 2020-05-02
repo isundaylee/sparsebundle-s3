@@ -64,6 +64,8 @@ class Uploader:
         if not self.for_real:
             return
 
+        self.logger.info("  Starting to write to %s", remote)
+
         try:
             local_file.seek(0)
             boto3.resource("s3").Bucket(self.bucket).put_object(
@@ -160,6 +162,7 @@ class Uploader:
             )
             remote_path = "{}/bands/{}.arc".format(self.name, name)
 
+            self.logger.info("Archiving package %s", remote_path)
             archive = arc.archiver.Archiver(
                 use_gzip=self.gzip, use_lz4=self.lz4, cache_chunks=self.cache_chunks
             )
@@ -171,7 +174,7 @@ class Uploader:
                 band_files.append(band_file)
                 archive.add_file(band_name, band_file)
 
-            self.logger.info("Uploading package %s", remote_path)
+            self.logger.info("  Uploading package %s", remote_path)
             self._upload_file(
                 archive, remote_path, md5_catalog_path, self.storage_class
             )
